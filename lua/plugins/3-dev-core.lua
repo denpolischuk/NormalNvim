@@ -69,6 +69,9 @@ return {
       },
       incremental_selection = { enable = true },
       indent = { enable = true },
+      ensure_installed = {
+        "terraform",
+      },
       textobjects = {
         select = {
           enable = true,
@@ -147,6 +150,7 @@ return {
     opts = { user_default_options = { names = false } },
   },
 
+  { 'towolf/vim-helm',       ft = 'helm' },
   --  LSP -------------------------------------------------------------------
 
   -- nvim-java [java support]
@@ -347,6 +351,9 @@ return {
           nls.builtins.formatting.beautysh.with {
             command = "beautysh",
             args = { "--indent-size=2", "$FILENAME" },
+          },
+          nls.builtins.formatting.terraform_fmt.with {
+            filetypes = { "terraform", "tf", "terraform-vars", "hcl" }
           },
           -- TODO: Disable the next feature once this has been merged.
           -- https://github.com/bash-lsp/bash-language-server/issues/933

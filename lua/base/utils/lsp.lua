@@ -455,6 +455,16 @@ function M.config(server_name)
   if server_name == "bashls" then -- by default use mason shellcheck path
     lsp_opts.settings = { bashIde = { shellcheckPath = vim.fn.stdpath "data" .. "/mason/bin/shellcheck" } }
   end
+  if server_name == "helm_ls" then -- by default use mason shellcheck path
+    lsp_opts.settings = { ['helm-ls'] = {
+      yamlls = {
+        path = "yaml-language-server",
+      }
+    } }
+  end
+  if server_name == "terraformls" then -- by default use mason shellcheck path
+    lsp_opts.settings = {}
+  end
   local opts = lsp_opts
   local old_on_attach = server.on_attach
   opts.on_attach = function(client, bufnr)

@@ -91,6 +91,9 @@ maps.n["j"] =
 maps.n["k"] =
 { "v:count == 0 ? 'gk' : 'k'", expr = true, desc = "Move cursor up" }
 maps.n["<leader>w"] = { "<cmd>w<cr>", desc = "Save" }
+maps.n[",cf"] = { "ggVGy", desc = "Copy file content" }
+maps.v["<A-k>"] = { "<cmd>m+<cr>", desc = "Move selected block one line above" }
+maps.v["<A-j>"] = { "<cmd>m-2<cr>", desc = "Move selected block one line below" }
 maps.n["<leader>W"] =
 { function() vim.cmd "SudaWrite" end, desc = "Save as sudo" }
 maps.n["<leader>n"] = { "<cmd>enew<cr>", desc = "New file" }
@@ -123,8 +126,6 @@ if not android then
   -- only useful when the option clipboard is commented on ./1-options.lua
   maps.n["<C-y>"] = { '"+y<esc>', desc = "Copy to cliboard" }
   maps.x["<C-y>"] = { '"+y<esc>', desc = "Copy to cliboard" }
-  maps.n["<C-d>"] = { '"+y<esc>dd', desc = "Copy to clipboard and delete line" }
-  maps.x["<C-d>"] = { '"+y<esc>dd', desc = "Copy to clipboard and delete line" }
   maps.n["<C-p>"] = { '"+p<esc>', desc = "Paste from clipboard" }
 end
 
@@ -285,7 +286,7 @@ maps.n["<leader>c"] = { -- Close window and buffer at the same time.
   function() require("base.utils.buffer").wipe() end,
   desc = "Wipe buffer",
 }
-maps.n["<leader>C"] = { -- Close buffer keeping the window.
+maps.n["<S-w>"] = { -- Close buffer keeping the window.
   function() require("base.utils.buffer").close() end,
   desc = "Close buffer",
 }
@@ -298,13 +299,13 @@ maps.n["<leader>ba"] = {
   function() vim.cmd "wa" end,
   desc = "Write all changed buffers",
 }
-maps.n["]b"] = {
+maps.n["L"] = {
   function()
     require("base.utils.buffer").nav(vim.v.count > 0 and vim.v.count or 1)
   end,
   desc = "Next buffer",
 }
-maps.n["[b"] = {
+maps.n["H"] = {
   function()
     require("base.utils.buffer").nav(-(vim.v.count > 0 and vim.v.count or 1))
   end,
@@ -902,6 +903,10 @@ if is_available "telescope.nvim" then
     desc = "Find words in project",
   }
   maps.n["<leader>fF"] = {
+    function() require("telescope.builtin").live_grep() end,
+    desc = "Find words in project (no hidden)",
+  }
+  maps.n[",w"] = {
     function() require("telescope.builtin").live_grep() end,
     desc = "Find words in project (no hidden)",
   }

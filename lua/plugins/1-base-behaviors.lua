@@ -484,8 +484,8 @@ return {
           width = 30,
           mappings = {
             ["<space>"] = false, -- disable space until we figure out which-key disabling
-            ["[b"] = "prev_source",
-            ["]b"] = "next_source",
+            H = "prev_source",
+            L = "next_source",
             F = utils.is_available "telescope.nvim" and "find_in_dir" or nil,
             O = "system_open",
             Y = "copy_selector",
@@ -494,6 +494,10 @@ return {
           },
         },
         filesystem = {
+          filtered_items = {
+            visible = true,
+            hide_dotfiles = false,
+          },
           follow_current_file = {
             enabled = true,
           },

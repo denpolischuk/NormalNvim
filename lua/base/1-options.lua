@@ -11,7 +11,7 @@
 _G.base = {}
 
 -- Theme
-base.default_colorscheme = "tokyonight-night"
+base.default_colorscheme = "kanagawa"
 
 -- define variables -----------------------------------------------------------
 local options = {
@@ -36,7 +36,7 @@ local options = {
     number = true, -- Show numberline.
     preserveindent = true, -- Preserve indent structure as much as possible.
     pumheight = 10, -- Height of the pop up menu.
-    relativenumber = false, -- Show relative numberline.
+    relativenumber = true, -- Show relative numberline.
     shiftwidth = 2, -- Number of space inserted for indentation.
     showmode = false, -- Disable showing modes in command line.
     showtabline = 2, -- always display tabline.
@@ -59,7 +59,6 @@ local options = {
     history = 1000, -- Number of commands to remember in a history table (per buffer).
     swapfile = false, -- Ask what state to recover when opening a file that was not saved.
     wrap = true, -- Disable wrapping of lines longer than the width of window.
-    colorcolumn = "80", -- PEP8 like character limit vertical bar.
     mousescroll = "ver:1,hor:0", -- Disables hozirontal scroll in neovim.
     guicursor = "n:blinkon200,i-ci-ve:ver25", -- Enable cursor blink.
     autochdir = true, -- Use current file dir as working dir (See project.nvim).
