@@ -13,14 +13,15 @@
 
 -- lazy updater options
 -- Use the same values you have in the plugin `distroupdate.nvim`
-base.updater = {
-  channel = "stable" ,               -- 'nightly', or 'stable'
-  snapshot_module = "lazy_snapshot"  -- snapshot file name without extension.
+local updater = {
+  channel = "stable",               -- 'nightly', or 'stable'
+  snapshot_module = "lazy_snapshot" -- snapshot file name without extension.
 }
 
 -- lazyload extra behavior
---  * If plugins need to be installed → auto lanch lazy at startup.
---  * When lazy finishes updating     → check for mason updates too.
+--  * If plugins need to be installed         → auto launch lazy at startup.
+--  * When lazy finishes installing plugins   → check for mason updates too.
+--    (but not when updating them)
 --  * Then show notifications and stuff.
 local lazypath = vim.fn.stdpath "data" .. "/lazy/lazy.nvim"
 local luv = vim.uv or vim.loop
@@ -47,21 +48,18 @@ if not luv.fs_stat(lazypath) then
       vim.cmd.bw()
       vim.opt.cmdheight = oldcmdheight
       vim.tbl_map(function(module) pcall(require, module) end, { "nvim-treesitter", "mason" })
-      require("base.utils").notify "Mason is installing packages if configured, check status with `:Mason`"
+      -- Note: This event will also trigger a Mason update in distroupdate.nvim
     end,
   })
 end
 vim.opt.rtp:prepend(lazypath)
 
- -- true if channel is 'stable'
-local pin_plugins = base.updater.channel == "stable"
-
--- assign spec (if pin_plugins is true, load ./lua/lazy_snapshot.lua)
-local spec = pin_plugins and {{ import = base.updater.snapshot_module }} or {}
+-- assign spec (if pin_plugins is true, load ./lua/lazy_snapshot.lua).
+local pin_plugins = updater.channel == "stable"
+local spec = pin_plugins and { { import = updater.snapshot_module } } or {}
 vim.list_extend(spec, { { import = "plugins" } })
 
-
--- Setup using spec
+-- Require lazy and pass the spec.
 require("lazy").setup({
   spec = spec,
   defaults = { lazy = true },

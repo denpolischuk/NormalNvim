@@ -10,19 +10,23 @@
 
 --       ## LSP
 --       -> nvim-java                      [java support]
---       -> nvim-lspconfig                 [lsp config]
---       -> garbage-day                    [lsp garbage collector]
+--       -> mason-lspconfig                [auto start lsp]
+--       -> nvim-lspconfig                 [lsp configs]
 --       -> mason.nvim                     [lsp package manager]
 --       -> SchemaStore.nvim               [lsp schema manager]
 --       -> none-ls                        [lsp code formatting]
 --       -> neodev                         [lsp for nvim lua api]
+--       -> garbage-day                    [lsp garbage collector]
 
---       ## AUTO COMPLETON
+--       ## AUTO COMPLETION
 --       -> nvim-cmp                       [auto completion engine]
 --       -> cmp-nvim-buffer                [auto completion buffer]
 --       -> cmp-nvim-path                  [auto completion path]
 --       -> cmp-nvim-lsp                   [auto completion lsp]
 --       -> cmp-luasnip                    [auto completion snippets]
+
+local utils = require("base.utils")
+local utils_lsp = require("base.utils.lsp")
 
 return {
   --  TREE SITTER ---------------------------------------------------------
@@ -36,7 +40,7 @@ return {
     dependencies = {
       "windwp/nvim-ts-autotag",
       "nvim-treesitter/nvim-treesitter-textobjects",
-      "JoosepAlviste/nvim-ts-context-commentstring",
+      "JoosepAlviste/nvim-ts-context-commentstring"
     },
     event = "User BaseFile",
     cmd = {
@@ -58,14 +62,14 @@ return {
     opts = {
       auto_install = false, -- Currently bugged. Use [:TSInstall all] and [:TSUpdate all]
       autotag = { enable = true },
-      context_commentstring = { enable = true, enable_autocmd = false },
       highlight = {
         enable = true,
-        disable = function(_, bufnr) return vim.b[bufnr].large_buf end,
+        disable = function(_, bufnr) return utils.is_big_file(bufnr) end,
       },
       matchup = {
         enable = true,
         enable_quotes = true,
+        disable = function(_, bufnr) return utils.is_big_file(bufnr) end,
       },
       incremental_selection = { enable = true },
       indent = { enable = true },
@@ -132,7 +136,9 @@ return {
     },
     config = function(_, opts)
       require("nvim-treesitter.configs").setup(opts)
-      vim.cmd ""
+      require('ts_context_commentstring').setup(
+        { enable = true, enable_autocmd = false })      -- Enable commentstring
+      vim.g.skip_ts_context_commentstring_module = true -- Increase performance
     end,
   },
 
@@ -154,105 +160,135 @@ return {
   --  LSP -------------------------------------------------------------------
 
   -- nvim-java [java support]
-  -- https://github.com/neovim/nvim-lspconfig
-  -- Reliable jdtls support. Must go before lsp-config.
+  -- https://github.com/nvim-java/nvim-java
+  -- Reliable jdtls support. Must go before mason-lspconfig and lsp-config.
   {
-    'nvim-java/nvim-java',
+    "nvim-java/nvim-java",
     ft = { "java" },
     dependencies = {
-      'nvim-java/lua-async-await',
-      'nvim-java/nvim-java-core',
-      'nvim-java/nvim-java-test',
-      'nvim-java/nvim-java-dap',
-      'MunifTanjim/nui.nvim',
-      'neovim/nvim-lspconfig',
-      'mfussenegger/nvim-dap',
-      {
-        'williamboman/mason.nvim',
-        opts = {
-          registries = {
-            'github:nvim-java/mason-registry',
-            'github:mason-org/mason-registry',
-          },
-        },
-      }
+      "nvim-java/lua-async-await",
+      "nvim-java/nvim-java-core",
+      "nvim-java/nvim-java-test",
+      "nvim-java/nvim-java-dap",
+      "MunifTanjim/nui.nvim",
+      "neovim/nvim-lspconfig",
+      "mfussenegger/nvim-dap",
+      "williamboman/mason.nvim",
+    },
+    opts = {
+      notifications = {
+        dap = false,
+      },
     },
   },
 
-  --  Syntax highlight [lsp config]
+  --  nvim-lspconfig [lsp configs]
   --  https://github.com/neovim/nvim-lspconfig
+  --  This plugin provide default configs for the lsp servers available on mason.
   {
     "neovim/nvim-lspconfig",
-    dependencies = {
-      {
-        "williamboman/mason-lspconfig.nvim",
-        cmd = { "LspInstall", "LspUninstall" },
-        opts = function(_, opts)
-          if not opts.handlers then opts.handlers = {} end
-          opts.handlers[1] = function(server) require("base.utils.lsp").setup(server) end
-        end,
-        config = function(_, opts)
-          require("mason-lspconfig").setup(opts)
-          require("base.utils").event("MasonLspSetup")
-        end,
-      },
-    },
     event = "User BaseFile",
-    config = function(_, _)
-      local lsp = require "base.utils.lsp"
-      local utils = require "base.utils"
-      local get_icon = utils.get_icon
-      local signs = {
-        { name = "DiagnosticSignError", text = get_icon "DiagnosticError", texthl = "DiagnosticSignError" },
-        { name = "DiagnosticSignWarn", text = get_icon "DiagnosticWarn", texthl = "DiagnosticSignWarn" },
-        { name = "DiagnosticSignHint", text = get_icon "DiagnosticHint", texthl = "DiagnosticSignHint" },
-        { name = "DiagnosticSignInfo", text = get_icon "DiagnosticInfo", texthl = "DiagnosticSignInfo" },
-        { name = "DapStopped", text = get_icon "DapStopped", texthl = "DiagnosticWarn" },
-        { name = "DapBreakpoint", text = get_icon "DapBreakpoint", texthl = "DiagnosticInfo" },
-        { name = "DapBreakpointRejected", text = get_icon "DapBreakpointRejected", texthl = "DiagnosticError" },
-        { name = "DapBreakpointCondition", text = get_icon "DapBreakpointCondition", texthl = "DiagnosticInfo" },
-        { name = "DapLogPoint", text = get_icon "DapLogPoint", texthl = "DiagnosticInfo" },
-      }
+    dependencies = "nvim-java/nvim-java",
+    config = function()
+      -- nvim-java DAP support.
+      if utils.is_available("nvim-java") then
+        require("lspconfig").jdtls.setup({})
+      end
+    end
+  },
 
-      for _, sign in ipairs(signs) do
-        vim.fn.sign_define(sign.name, sign)
-      end
-      lsp.setup_diagnostics(signs)
-
-      local orig_handler = vim.lsp.handlers["$/progress"]
-      vim.lsp.handlers["$/progress"] = function(_, msg, info)
-        local progress, id = base.lsp.progress, ("%s.%s"):format(info.client_id, msg.token)
-        progress[id] = progress[id] and utils.extend_tbl(progress[id], msg.value) or msg.value
-        if progress[id].kind == "end" then
-          vim.defer_fn(function()
-            progress[id] = nil
-            utils.event "LspProgress"
-          end, 100)
-        end
-        utils.event "LspProgress"
-        orig_handler(_, msg, info)
-      end
-
-      if vim.g.lsp_round_borders_enabled then
-        vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, { border = "rounded", silent = true })
-        vim.lsp.handlers["textDocument/signatureHelp"] =
-          vim.lsp.with(vim.lsp.handlers.signature_help, { border = "rounded", silent = true })
-      end
-      local setup_servers = function()
-        vim.api.nvim_exec_autocmds("FileType", {})
-        require("base.utils").event("LspSetup")
-      end
-      if require("base.utils").is_available "mason-lspconfig.nvim" then
-        vim.api.nvim_create_autocmd("User", {
-          desc = "set up LSP servers after mason-lspconfig",
-          pattern = "BaseMasonLspSetup",
-          once = true,
-          callback = setup_servers,
-        })
-      else
-        setup_servers()
-      end
+  -- mason-lspconfig [auto start lsp]
+  -- https://github.com/williamboman/mason-lspconfig.nvim
+  -- This plugin auto starts the lsp servers installed by Mason
+  -- every time Neovim trigger the event FileType.
+  {
+    "williamboman/mason-lspconfig.nvim",
+    dependencies = { "neovim/nvim-lspconfig" },
+    event = "User BaseFile",
+    opts = function(_, opts)
+      if not opts.handlers then opts.handlers = {} end
+      opts.handlers[1] = function(server) utils_lsp.setup(server) end
     end,
+    config = function(_, opts)
+      require("mason-lspconfig").setup(opts)
+      utils_lsp.apply_default_lsp_settings() -- Apply our default lsp settings.
+      utils.trigger_event("FileType")        -- This line starts this plugin.
+    end,
+  },
+
+  --  mason [lsp package manager]
+  --  https://github.com/williamboman/mason.nvim
+  --  https://github.com/Zeioth/mason-extra-cmds
+  {
+    "williamboman/mason.nvim",
+    dependencies = { "Zeioth/mason-extra-cmds", opts = {} },
+    cmd = {
+      "Mason",
+      "MasonInstall",
+      "MasonUninstall",
+      "MasonUninstallAll",
+      "MasonLog",
+      "MasonUpdate",
+      "MasonUpdateAll", -- this cmd is provided by mason-extra-cmds
+    },
+    opts = {
+      registries = {
+        "github:nvim-java/mason-registry",
+        "github:mason-org/mason-registry",
+      },
+      ui = {
+        icons = {
+          package_installed = "✓",
+          package_uninstalled = "✗",
+          package_pending = "⟳",
+        },
+      },
+    }
+  },
+
+  --  Schema Store [lsp schema manager]
+  --  https://github.com/b0o/SchemaStore.nvim
+  "b0o/SchemaStore.nvim",
+
+  -- mason-null-ls.nivm
+  -- https://github.com/jay-babu/mason-null-ls.nvim
+  -- Allows none-ls to use clients installed by mason.
+  {
+    "jay-babu/mason-null-ls.nvim",
+    cmd = {
+      "NullLsInstall",
+      "NullLsUninstall",
+      "NoneLsInstall",
+      "NoneLsUninstall"
+    },
+    opts = { handlers = {} },
+  },
+
+  --  none-ls [lsp code formatting]
+  --  https://github.com/nvimtools/none-ls.nvim
+  {
+    "nvimtools/none-ls.nvim",
+    dependencies = { "jay-babu/mason-null-ls.nvim" },
+    event = "User BaseFile",
+    opts = function()
+      -- You can customize your formatters here.
+      local nls = require("null-ls")
+      nls.builtins.formatting.shfmt.with({
+        command = "shfmt",
+        args = { "-i", "2", "-filename", "$FILENAME" },
+      })
+
+      -- Attach the user lsp mappings to every none-ls client.
+      return { on_attach = utils_lsp.apply_user_lsp_mappings }
+    end
+  },
+
+  --  neodev.nvim [lsp for nvim lua api]
+  --  https://github.com/folke/neodev.nvim
+  {
+    "folke/neodev.nvim",
+    ft = { "lua" },
+    opts = {}
   },
 
   --  garbage-day.nvim [lsp garbage collector]
@@ -265,116 +301,13 @@ return {
       excluded_lsp_clients = {
         "null-ls", "jdtls"
       },
-      grace_period = (60*5),
+      grace_period = (60 * 15),
       wakeup_delay = 3000,
       notifications = false,
       retries = 3,
       timeout = 1000,
     }
   },
-
-  --  mason [lsp package manager]
-  --  https://github.com/williamboman/mason.nvim
-  {
-    "williamboman/mason.nvim",
-    cmd = {
-      "Mason",
-      "MasonInstall",
-      "MasonUninstall",
-      "MasonUninstallAll",
-      "MasonLog",
-      "MasonUpdate",
-      "MasonUpdateAll",
-    },
-    opts = {
-      ui = {
-        icons = {
-          package_installed = "✓",
-          package_uninstalled = "✗",
-          package_pending = "⟳",
-        },
-      },
-    },
-    build = ":MasonUpdate",
-    config = function(_, opts)
-      require("mason").setup(opts)
-
-      local cmd = vim.api.nvim_create_user_command
-      cmd("MasonUpdate", function(options) require("distroupdate.utils.mason").update(options.fargs) end, {
-        nargs = "*",
-        desc = "Update Mason Package",
-        complete = function(arg_lead)
-          local _ = require "mason-core.functional"
-          return _.sort_by(
-            _.identity,
-            _.filter(_.starts_with(arg_lead), require("mason-registry").get_installed_package_names())
-           )
-        end,
-      })
-      cmd(
-        "MasonUpdateAll",
-        function() require("distroupdate.utils.mason").update_all() end,
-        { desc = "Update Mason Packages" }
-      )
-
-      for _, plugin in ipairs {
-        "mason-lspconfig",
-        "mason-null-ls",
-        "mason-nvim-dap",
-      } do
-        pcall(require, plugin)
-      end
-    end,
-  },
-
-  --  Schema Store [lsp schema manager]
-  --  https://github.com/b0o/SchemaStore.nvim
-  "b0o/SchemaStore.nvim",
-
-  --  null-ls [lsp code formatting]
-  --  https://github.com/nvimtools/none-ls.nvim
-  {
-    "nvimtools/none-ls.nvim",
-    dependencies = {
-      {
-        "jay-babu/mason-null-ls.nvim",
-        cmd = { "NullLsInstall", "NullLsUninstall" },
-        opts = { handlers = {} },
-      },
-    },
-    event = "User BaseFile",
-    opts = function()
-      local nls = require "null-ls"
-      return {
-        sources = {
-          -- You can customize your formatters here.
-          nls.builtins.formatting.beautysh.with {
-            command = "beautysh",
-            args = { "--indent-size=2", "$FILENAME" },
-          },
-          nls.builtins.formatting.terraform_fmt.with {
-            filetypes = { "terraform", "tf", "terraform-vars", "hcl" }
-          },
-          -- TODO: Disable the next feature once this has been merged.
-          -- https://github.com/bash-lsp/bash-language-server/issues/933
-          nls.builtins.code_actions.shellcheck,
-          nls.builtins.diagnostics.shellcheck.with { diagnostics_format = "" },
-        },
-        on_attach = require("base.utils.lsp").on_attach,
-      }
-    end,
-  },
-
-  --  neodev.nvim [lsp for nvim lua api]
-  --  https://github.com/folke/neodev.nvim
-  {
-    "folke/neodev.nvim",
-    opts = {},
-    config = function(_, opts)
-      require("neodev").setup(opts)
-    end,
-  },
-
   --  AUTO COMPLETION --------------------------------------------------------
   --  Auto completion engine [autocompletion engine]
   --  https://github.com/hrsh7th/nvim-cmp
@@ -388,35 +321,39 @@ return {
     },
     event = "InsertEnter",
     opts = function()
-      local cmp = require "cmp"
-      local snip_status_ok, luasnip = pcall(require, "luasnip")
-      local lspkind_status_ok, lspkind = pcall(require, "lspkind")
-      local utils = require "base.utils"
-      if not snip_status_ok then return end
+      -- ensure dependencies exist
+      local cmp = require("cmp")
+      local luasnip = require("luasnip")
+      local lspkind = require("lspkind")
+
+      -- border opts
       local border_opts = {
         border = "rounded",
         winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:PmenuSel,Search:None",
       }
 
+      -- helper
       local function has_words_before()
         local line, col = (unpack or table.unpack)(vim.api.nvim_win_get_cursor(0))
         return col ~= 0 and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(col, col):match "%s" == nil
       end
 
       return {
-        enabled = function()
-          local dap_prompt = utils.is_available "cmp-dap" -- add interoperability with cmp-dap
-            and vim.tbl_contains(
-              { "dap-repl", "dapui_watches", "dapui_hover" },
-              vim.api.nvim_get_option_value("filetype", { buf = 0 })
-            )
-          if vim.api.nvim_get_option_value("buftype", { buf = 0 }) == "prompt" and not dap_prompt then return false end
-          return vim.g.cmp_enabled
+        enabled = function() -- disable in certain cases on dap.
+          local is_prompt = vim.bo.buftype == "prompt"
+          local is_dap_prompt = utils.is_available("cmp-dap")
+              and vim.tbl_contains(
+                { "dap-repl", "dapui_watches", "dapui_hover" }, vim.bo.filetype)
+          if is_prompt and not is_dap_prompt then
+            return false
+          else
+            return vim.g.cmp_enabled
+          end
         end,
         preselect = cmp.PreselectMode.None,
         formatting = {
           fields = { "kind", "abbr", "menu" },
-          format = lspkind_status_ok and lspkind.cmp_format(utils.plugin_opts "lspkind.nvim") or nil,
+          format = lspkind.cmp_format(utils.get_plugin_opts("lspkind.nvim")),
         },
         snippet = {
           expand = function(args) luasnip.lsp_expand(args.body) end,
@@ -511,14 +448,12 @@ return {
         },
         sources = cmp.config.sources {
           { name = "nvim_lsp", priority = 1000 },
-          { name = "luasnip", priority = 750 },
-          { name = "buffer", priority = 500 },
-          { name = "path", priority = 250 },
+          { name = "luasnip",  priority = 750 },
+          { name = "buffer",   priority = 500 },
+          { name = "path",     priority = 250 },
         },
       }
     end,
   },
 
-
-
-} -- end of return
+}

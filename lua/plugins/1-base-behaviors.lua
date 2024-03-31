@@ -7,7 +7,6 @@
 --       -> trim.nvim              [auto trim spaces]
 --       -> stickybuf.nvim         [lock special buffers]
 --       -> mini.bufremove         [smart bufdelete]
---       -> nvim-window-picker     [select buffer with a letter]
 --       -> smart-splits           [move and resize buffers]
 --       -> better-scape.nvim      [esc]
 --       -> toggleterm.nvim        [term]
@@ -16,7 +15,7 @@
 --       -> neotree file browser   [neotree]
 --       -> nvim-ufo               [folding mod]
 --       -> nvim-neoclip           [nvim clipboard]
---       -> zen.nvim               [distraction free mode]
+--       -> zen-mode.nvim          [distraction free mode]
 --       -> suda.vim               [write as sudo]
 --       -> vim-matchup            [Improved % motion]
 --       -> hop.nvim               [go to word visually]
@@ -24,10 +23,9 @@
 --       -> lsp_signature.nvim     [auto params help]
 --       -> distroupdate.nvim      [distro update]
 
-local windows = vim.fn.has('win32') == 1             -- true if on windows
-local android = vim.fn.isdirectory('/system') == 1   -- true if on android
+local is_windows = vim.fn.has('win32') == 1         -- true if on windows
+local is_android = vim.fn.isdirectory('/data') == 1 -- true if on android
 
--- configures plugins
 return {
   -- [ranger] file browser
   -- https://github.com/kevinhwang91/rnvimr
@@ -40,14 +38,14 @@ return {
   --   This way you can install and use 'ranger' and its dependency 'pynvim'.
   {
     "kevinhwang91/rnvimr",
-    event = "VeryLazy",
+    event = "User BaseDefered",
     cmd = { "RnvimrToggle" },
-    enabled = not windows,
-    config = function(_, opts)
+    enabled = not is_windows,
+    config = function()
       -- vim.g.rnvimr_vanilla = 1            -- Often solves issues in your ranger config.
       vim.g.rnvimr_enable_picker = 1         -- Close rnvimr after choosing a file.
       vim.g.rnvimr_ranger_cmd = { "ranger" } -- By passing a script like TERM=foot ranger "$@" you can open terminals inside ranger.
-      if android then -- Open on full screenn
+      if is_android then                     -- Open on full screenn
         vim.g.rnvimr_layout = {
           relative = "editor",
           width = 200,
@@ -57,7 +55,6 @@ return {
           style = "minimal",
         }
       end
-      require("project_nvim").setup(opts)
     end,
   },
 
@@ -65,7 +62,7 @@ return {
   -- https://github.com/ahmedkhalf/project.nvim
   {
     "Zeioth/project.nvim",
-    event = "VeryLazy",
+    event = "User BaseDefered",
     cmd = "ProjectRoot",
     opts = {
       -- How to find root directory
@@ -78,6 +75,7 @@ return {
         "Makefile",
         "package.json",
         ".solution",
+        ".solution.toml"
       },
       -- Don't list the next projects
       exclude_dirs = {
@@ -87,10 +85,10 @@ return {
       manual_mode = false,
 
       -- Don't auto-chdir for specific filetypes.
-      exclude_filetype_chdir = {"", "OverseerList", "alpha"},
+      exclude_filetype_chdir = { "", "OverseerList", "alpha" },
 
       -- Don't auto-chdir for specific buftypes.
-      exclude_buftype_chdir = {"nofile", "terminal"},
+      exclude_buftype_chdir = { "nofile", "terminal" },
 
       --ignore_lsp = { "lua_ls" },
     },
@@ -117,7 +115,7 @@ return {
   -- By default it support neovim/aerial and others.
   {
     "stevearc/stickybuf.nvim",
-    event = "VeryLazy",
+    event = "User BaseDefered",
     config = function() require("stickybuf").setup() end
   },
 
@@ -129,32 +127,18 @@ return {
     event = "User BaseFile"
   },
 
-  -- nvim-window-picker  [select buffer with a letter]
-  -- https://github.com/s1n7ax/nvim-window-picker
-  -- Warning: currently no keybinding assigned for this plugin.
-  {
-    "s1n7ax/nvim-window-picker",
-    name = "window-picker",
-    opts = {
-      picker_config = {
-        statusline_winbar_picker = {
-          use_winbar = "smart",
-        },
-      },
-    },
-  },
-
   --  smart-splits [move and resize buffers]
   --  https://github.com/mrjones2014/smart-splits.nvim
   {
     "mrjones2014/smart-splits.nvim",
+    event = "User BaseFile",
     opts = {
       ignored_filetypes = { "nofile", "quickfix", "qf", "prompt" },
       ignored_buftypes = { "nofile" },
     },
   },
 
-  -- Improved [esc]
+  -- better-scape.nvim [esc]
   -- https://github.com/max397574/better-escape.nvim
   {
     "max397574/better-escape.nvim",
@@ -198,7 +182,7 @@ return {
   -- https://github.com/Shatur/neovim-session-manager
   {
     "Shatur/neovim-session-manager",
-    event = "User BaseFile",
+    event = "User BaseDefered",
     cmd = "SessionManager",
     opts = function()
       local config = require('session_manager.config')
@@ -219,11 +203,11 @@ return {
       --
       --      This won't be necessary once neovim fixes:
       --      https://github.com/neovim/neovim/issues/12242
-      vim.api.nvim_create_autocmd({ 'BufWritePre' }, {
-        callback = function ()
-          session_manager.save_current_session()
-        end
-      })
+      -- vim.api.nvim_create_autocmd({ 'BufWritePre' }, {
+      --   callback = function ()
+      --     session_manager.save_current_session()
+      --   end
+      -- })
     end
   },
 
@@ -334,11 +318,11 @@ return {
   -- https://github.com/nvim-neo-tree/neo-tree.nvim
   {
     "nvim-neo-tree/neo-tree.nvim",
-    dependencies = { "MunifTanjim/nui.nvim" },
+    dependencies = "MunifTanjim/nui.nvim",
     cmd = "Neotree",
-    init = function() vim.g.neo_tree_remove_legacy_commands = true end,
     opts = function()
-      local utils = require "base.utils"
+      vim.g.neo_tree_remove_legacy_commands = true
+      local utils = require("base.utils")
       local get_icon = utils.get_icon
       return {
         auto_clean_after_session_restore = true,
@@ -372,31 +356,31 @@ return {
         default_component_configs = {
           indent = { padding = 0 },
           icon = {
-            folder_closed = get_icon "FolderClosed",
-            folder_open = get_icon "FolderOpen",
-            folder_empty = get_icon "FolderEmpty",
-            folder_empty_open = get_icon "FolderEmpty",
+            folder_closed = get_icon("FolderClosed"),
+            folder_open = get_icon("FolderOpen"),
+            folder_empty = get_icon("FolderEmpty"),
+            folder_empty_open = get_icon("FolderEmpty"),
             default = get_icon "DefaultFile",
           },
           modified = { symbol = get_icon "FileModified" },
           git_status = {
             symbols = {
-              added = get_icon "GitAdd",
-              deleted = get_icon "GitDelete",
-              modified = get_icon "GitChange",
-              renamed = get_icon "GitRenamed",
-              untracked = get_icon "GitUntracked",
-              ignored = get_icon "GitIgnored",
-              unstaged = get_icon "GitUnstaged",
-              staged = get_icon "GitStaged",
-              conflict = get_icon "GitConflict",
+              added = get_icon("GitAdd"),
+              deleted = get_icon("GitDelete"),
+              modified = get_icon("GitChange"),
+              renamed = get_icon("GitRenamed"),
+              untracked = get_icon("GitUntracked"),
+              ignored = get_icon("GitIgnored"),
+              unstaged = get_icon("GitUnstaged"),
+              staged = get_icon("GitStaged"),
+              conflict = get_icon("GitConflict"),
             },
           },
         },
         -- A command is a function that we can assign to a mapping (below)
         commands = {
           system_open = function(state)
-            require("base.utils").system_open(state.tree:get_node():get_id())
+            require("base.utils").open_with_program(state.tree:get_node():get_id())
           end,
           parent_or_close = function(state)
             local node = state.tree:get_node()
@@ -417,7 +401,7 @@ return {
             if node.type == "directory" or node:has_children() then
               if not node:is_expanded() then -- if unexpanded, expand
                 state.commands.toggle_node(state)
-              else -- if expanded and has children, seleect the next child
+              else                           -- if expanded and has children, seleect the next child
                 require("neo-tree.ui.renderer").focus_node(
                   state,
                   node:get_child_ids()[1]
@@ -541,34 +525,35 @@ return {
 
         -- only use indent until a file is opened
         return (filetype == "" or buftype == "nofile") and "indent"
-          or function(bufnr)
-            return require("ufo")
-                .getFolds(bufnr, "lsp")
-                :catch(
-                  function(err)
-                    return handleFallbackException(bufnr, err, "treesitter")
-                  end
-                )
-                :catch(
-                  function(err)
-                    return handleFallbackException(bufnr, err, "indent")
-                  end
-                )
-          end
+            or function(bufnr)
+              return require("ufo")
+                  .getFolds(bufnr, "lsp")
+                  :catch(
+                    function(err)
+                      return handleFallbackException(bufnr, err, "treesitter")
+                    end
+                  )
+                  :catch(
+                    function(err)
+                      return handleFallbackException(bufnr, err, "indent")
+                    end
+                  )
+            end
       end,
     },
   },
 
   --  nvim-neoclip [nvim clipboard]
   --  https://github.com/AckslD/nvim-neoclip.lua
-  --  By default registers are deleted between sessions.
+  --  Read their docs to enable cross-session history.
   {
     "AckslD/nvim-neoclip.lua",
-    requires = { {'nvim-telescope/telescope.nvim'} },
-    config = function() require('neoclip').setup() end,
+    requires = 'nvim-telescope/telescope.nvim',
+    event = "User BaseFile",
+    opts = {}
   },
 
-  --  zen-mode.nivm [distraction free mode]
+  --  zen-mode.nvim [distraction free mode]
   --  https://github.com/folke/zen-mode.nvim
   {
     "folke/zen-mode.nvim",
@@ -586,7 +571,7 @@ return {
   --  https://github.com/andymass/vim-matchup
   {
     "andymass/vim-matchup",
-    event = "VeryLazy",
+    event = "User BaseFile",
     config = function()
       vim.g.matchup_matchparen_deferred = 1   -- work async
       vim.g.matchup_matchparen_offscreen = {} -- disable status bar icon
@@ -598,10 +583,7 @@ return {
   {
     "smoka7/hop.nvim",
     cmd = { "HopWord" },
-    opts = { keys = "etovxqpdygfblzhckisuran" },
-    config = function(_, opts)
-      require("hop").setup(opts)
-    end,
+    opts = { keys = "etovxqpdygfblzhckisuran" }
   },
 
   --  nvim-autopairs [auto close brackets]
@@ -626,11 +608,12 @@ return {
       },
     },
     config = function(_, opts)
-      local npairs = require "nvim-autopairs"
+      local npairs = require("nvim-autopairs")
       npairs.setup(opts)
       if not vim.g.autopairs_enabled then npairs.disable() end
-      local cmp_status_ok, cmp = pcall(require, "cmp")
-      if cmp_status_ok then
+
+      local is_cmp_loaded, cmp = pcall(require, "cmp")
+      if is_cmp_loaded then
         cmp.event:on(
           "confirm_done",
           require("nvim-autopairs.completion.cmp").on_confirm_done {
@@ -659,44 +642,45 @@ return {
         handler_opts = round_borders, -- Window style
 
         -- Hint mode
-        hint_enable = false,          -- Display it as hint.
-        hint_prefix = "👈 "
+        hint_enable = false, -- Display it as hint.
+        hint_prefix = "👈 ",
 
         -- Additionally, you can use <space>ui to toggle inlay hints.
-      } end,
-    config = function(_, opts) require'lsp_signature'.setup(opts) end
+        toggle_key_flip_floatwin_setting = is_enabled
+      }
+    end,
+    config = function(_, opts) require('lsp_signature').setup(opts) end
   },
 
   -- distroupdate.nvim [distro update]
   -- https://github.com/Zeioth/distroupdate.nvim
   {
     "Zeioth/distroupdate.nvim",
-    dependencies = { "nvim-lua/plenary.nvim" },
+    dependencies = {
+      "nvim-lua/plenary.nvim"
+    },
     cmd = {
-      "NvimChangelog",
-      "NvimFreezePluginVersions",
-      "NvimReload",
-      "NvimRollbackCreate",
-      "NvimRollbackRestore",
-      "NvimUpdateConfig",
-      "NvimUpdatePlugins",
-      "NvimVersions"
+      "DistroFreezePluginVersions",
+      "DistroReadChangelog",
+      "DistroReadVersion",
+      "DistroUpdate",
+      "DistroUpdateRevert"
     },
     opts = function()
-      local utils = require "base.utils"
+      local utils = require("base.utils")
       local config_dir = utils.os_path(vim.fn.stdpath "config" .. "/lua/base/")
       return {
-        channel = "stable",                                                  -- stable/nightly
+        channel = "stable", -- stable/nightly
         hot_reload_files = {
           config_dir .. "1-options.lua",
           config_dir .. "4-mappings.lua"
         },
-        hot_reload_extra_behavior = function()
-          vim.cmd ":silent! doautocmd ColorScheme"                           -- heirline colorscheme reload event
-          vim.cmd(":silent! colorscheme " .. base.default_colorscheme)       -- nvim     colorscheme reload command
+        hot_reload_callback = function()
+          vim.cmd(":silent! colorscheme " .. base.default_colorscheme) -- nvim     colorscheme reload command
+          vim.cmd(":silent! doautocmd ColorScheme")                    -- heirline colorscheme reload event
         end
       }
     end
   },
 
-}
+} -- end of return

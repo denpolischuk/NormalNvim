@@ -1,5 +1,5 @@
--- Autocmds file.
---
+-- General usage autocmds.
+
 -- DESCRIPTION:
 -- All autocmds are defined here.
 
@@ -10,13 +10,13 @@
 --       -> 2. Save/restore window layout when possible.
 --       -> 3. Launch alpha greeter on startup.
 --       -> 4. Update neotree when closing the git client.
+--       -> 5. Create parent directories when saving a file.
 --
 --       ## COOL HACKS
---       -> 5. Effect: URL underline.
---       -> 6. Customize right click contextual menu.
---       -> 7. Unlist quickfix buffers if the filetype changes.
---       -> 8. Close all notifications on BufWritePre.
---       -> 9. Create parent directories when saving a file.
+--       -> 6. Effect: URL underline.
+--       -> 7. Customize right click contextual menu.
+--       -> 8. Unlist quickfix buffers if the filetype changes.
+--       -> 9. Close all notifications on BufWritePre.
 --
 --       ## COMMANDS
 --       -> 10. Neotest commands.
@@ -24,11 +24,11 @@
 
 local autocmd = vim.api.nvim_create_autocmd
 local cmd = vim.api.nvim_create_user_command
-local utils = require "base.utils"
+local utils = require("base.utils")
 local is_available = utils.is_available
 
 -- ## EXTRA LOGIC -----------------------------------------------------------
--- 1. Events to load plugins faster → 'BaseFile'/'BaseGitFile':
+-- 1. Events to load plugins faster → 'BaseFile'/'BaseGitFile'/'BaseDefered':
 --    this is pretty much the same thing as the event 'BufEnter',
 --    but without increasing the startup time displayed in the greeter.
 autocmd({ "BufReadPost", "BufNewFile", "BufWritePost" }, {
@@ -36,17 +36,32 @@ autocmd({ "BufReadPost", "BufNewFile", "BufWritePost" }, {
   callback = function(args)
     local empty_buffer = vim.fn.resolve(vim.fn.expand "%") == ""
     local greeter = vim.api.nvim_get_option_value("filetype", { buf = args.buf }) == "alpha"
-    local git_repo = utils.cmd({ "git", "-C", vim.fn.fnamemodify(vim.fn.resolve(vim.fn.expand "%"), ":p:h"), "rev-parse" }, false)
+    local git_repo = utils.run_cmd(
+    { "git", "-C", vim.fn.fnamemodify(vim.fn.resolve(vim.fn.expand "%"), ":p:h"), "rev-parse" }, false)
 
     -- For any file exept empty buffer, or the greeter (alpha)
     if not (empty_buffer or greeter) then
-      utils.event "File" -- Emit event 'BaseFile'
+      utils.trigger_event("User BaseFile")
 
       -- Is the buffer part of a git repo?
       if git_repo then
-        utils.event "GitFile" -- Emit event 'BaseGitFile'
+        utils.trigger_event("User BaseGitFile")
       end
-
+    end
+  end,
+})
+autocmd({ "VimEnter" }, {
+  desc = "Nvim user event that trigger a few ms after nvim starts",
+  callback = function()
+    -- If nvim is opened passing a filename, trigger the event inmediatelly.
+    if #vim.fn.argv() >= 1 then
+      -- In order to avoid visual glitches.
+      utils.trigger_event("User BaseDefered", true)
+      utils.trigger_event("BufEnter", true) -- also, initialize tabline_buffers.
+    else                                    -- Wait some ms before triggering the event.
+      vim.defer_fn(function()
+        utils.trigger_event("User BaseDefered")
+      end, 70)
     end
   end,
 })
@@ -65,15 +80,15 @@ autocmd("BufWinEnter", {
   callback = function(args)
     if not vim.b[args.buf].view_activated then
       local filetype =
-        vim.api.nvim_get_option_value("filetype", { buf = args.buf })
+          vim.api.nvim_get_option_value("filetype", { buf = args.buf })
       local buftype =
-        vim.api.nvim_get_option_value("buftype", { buf = args.buf })
+          vim.api.nvim_get_option_value("buftype", { buf = args.buf })
       local ignore_filetypes = { "gitcommit", "gitrebase", "svg", "hgcommit" }
       if
-        buftype == ""
-        and filetype
-        and filetype ~= ""
-        and not vim.tbl_contains(ignore_filetypes, filetype)
+          buftype == ""
+          and filetype
+          and filetype ~= ""
+          and not vim.tbl_contains(ignore_filetypes, filetype)
       then
         vim.b[args.buf].view_activated = true
         vim.cmd.loadview { mods = { emsg_silent = true } }
@@ -91,9 +106,9 @@ if is_available "alpha-nvim" then
         "filetype", { buf = 0 }) == "alpha"
       local is_empty_file = vim.api.nvim_get_option_value(
         "buftype", { buf = 0 }) == "nofile"
-      if((args.event == "User" and args.file == "AlphaReady") or
-         (args.event == "BufEnter" and is_filetype_alpha)) and
-        not vim.g.before_alpha
+      if ((args.event == "User" and args.file == "AlphaReady") or
+            (args.event == "BufEnter" and is_filetype_alpha)) and
+          not vim.g.before_alpha
       then
         vim.g.before_alpha = {
           showtabline = vim.opt.showtabline:get(),
@@ -101,9 +116,9 @@ if is_available "alpha-nvim" then
         }
         vim.opt.showtabline, vim.opt.laststatus = 0, 0
       elseif
-        vim.g.before_alpha
-        and args.event == "BufEnter"
-        and not is_empty_file
+          vim.g.before_alpha
+          and args.event == "BufEnter"
+          and not is_empty_file
       then
         vim.opt.laststatus = vim.g.before_alpha.laststatus
         vim.opt.showtabline = vim.g.before_alpha.showtabline
@@ -117,8 +132,8 @@ if is_available "alpha-nvim" then
       -- Precalculate conditions.
       local lines = vim.api.nvim_buf_get_lines(0, 0, 2, false)
       local buf_not_empty = vim.fn.argc() > 0
-      or #lines > 1
-      or (#lines == 1 and lines[1]:len() > 0)
+          or #lines > 1
+          or (#lines == 1 and lines[1]:len() > 0)
       local buflist_not_empty = #vim.tbl_filter(
         function(bufnr) return vim.bo[bufnr].buflisted end,
         vim.api.nvim_list_bufs()
@@ -131,9 +146,9 @@ if is_available "alpha-nvim" then
       end
       for _, arg in pairs(vim.v.argv) do
         if arg == "-b"
-          or arg == "-c"
-          or vim.startswith(arg, "+")
-          or arg == "-S"
+            or arg == "-c"
+            or vim.startswith(arg, "+")
+            or arg == "-S"
         then
           return
         end
@@ -169,14 +184,29 @@ if is_available "neo-tree.nvim" then
   })
 end
 
+-- 5. Create parent directories when saving a file.
+autocmd("BufWritePre", {
+  desc = "Automatically create parent directories if they don't exist when saving a file",
+  callback = function(args)
+    local buf_is_valid_and_listed = vim.api.nvim_buf_is_valid(args.buf)
+        and vim.bo[args.buf].buflisted
+
+    if buf_is_valid_and_listed then
+      vim.fn.mkdir(vim.fn.fnamemodify(
+        vim.loop.fs_realpath(args.match) or args.match, ":p:h"), "p")
+    end
+  end,
+})
+
 -- ## COOL HACKS ------------------------------------------------------------
--- 5. Effect: URL underline.
+-- 6. Effect: URL underline.
+vim.api.nvim_set_hl(0, 'HighlightURL', { underline = true })
 autocmd({ "VimEnter", "FileType", "BufEnter", "WinEnter" }, {
   desc = "URL Highlighting",
   callback = function() utils.set_url_effect() end,
 })
 
--- 6. Customize right click contextual menu.
+-- 7. Customize right click contextual menu.
 autocmd("VimEnter", {
   desc = "Disable right contextual menu warning message",
   callback = function()
@@ -188,31 +218,21 @@ autocmd("VimEnter", {
     vim.api.nvim_command [[menu PopUp.Start\ \Compiler <cmd>:CompilerOpen<CR>]]
     vim.api.nvim_command [[menu PopUp.Start\ \Debugger <cmd>:DapContinue<CR>]]
     vim.api.nvim_command [[menu PopUp.Run\ \Test <cmd>:Neotest run<CR>]]
-
   end,
 })
 
--- 7. Unlist quickfix buffers if the filetype changes.
+-- 8. Unlist quickfix buffers if the filetype changes.
 autocmd("FileType", {
   desc = "Unlist quickfist buffers",
   pattern = "qf",
   callback = function() vim.opt_local.buflisted = false end,
 })
 
--- 8. Close all notifications on BufWritePre.
+-- 9. Close all notifications on BufWritePre.
 autocmd("BufWritePre", {
   desc = "Close all notifications on BufWritePre",
   callback = function()
-    require("notify").dismiss({pending = true, silent = true})
-  end,
-})
-
--- 9. Create parent directories when saving a file.
-autocmd("BufWritePre", {
-  desc = "Automatically create parent directories if they don't exist when saving a file",
-  callback = function(args)
-    if args.match:match("^%w%w+:" .. (vim.fn.has "win32" == 0 and "//" or "\\\\")) then return end
-    vim.fn.mkdir(vim.fn.fnamemodify(vim.loop.fs_realpath(args.match) or args.match, ":p:h"), "p")
+    require("notify").dismiss({ pending = true, silent = true })
   end,
 })
 
@@ -224,7 +244,7 @@ autocmd("BufWritePre", {
 
 -- Customize this command to work as you like
 cmd("TestNodejs", function()
-  vim.cmd ":ProjectRoot" -- cd the project root (requires project.nvim)
+  vim.cmd ":ProjectRoot"                  -- cd the project root (requires project.nvim)
   vim.cmd ":TermExec cmd='npm run tests'" -- convention to run tests on nodejs
   -- You can generate code coverage by add this to your project's packages.json
   -- "tests": "jest --coverage"
@@ -232,7 +252,7 @@ end, { desc = "Run all unit tests for the current nodejs project" })
 
 -- Customize this command to work as you like
 cmd("TestNodejsE2e", function()
-  vim.cmd ":ProjectRoot" -- cd the project root (requires project.nvim)
+  vim.cmd ":ProjectRoot"                -- cd the project root (requires project.nvim)
   vim.cmd ":TermExec cmd='npm run e2e'" -- Conventional way to call e2e in nodejs (requires ToggleTerm)
 end, { desc = "Run e2e tests for the current nodejs project" })
 
@@ -258,5 +278,5 @@ end, { desc = "Write all changed buffers" })
 
 -- Close all notifications
 cmd("CloseNotifications", function()
-  require("notify").dismiss({pending = true, silent = true})
+  require("notify").dismiss({ pending = true, silent = true })
 end, { desc = "Dismiss all notifications" })

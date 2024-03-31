@@ -1,9 +1,7 @@
 -- Command to check if you have the required dependencies to use NormalNvim.
 --
 -- DESCRIPTION:
--- On neovim you can run
--- :healthcheck base
--- to know possible causes in case NormalNvim is not working correctly.
+-- To use it run the command :healthcheck base
 
 local M = {}
 
@@ -19,11 +17,11 @@ function M.check()
   health.start "NormalNvim"
 
   health.info(
-    "NormalNvim Version: " .. require("base.utils.updater").version(true)
+    "NormalNvim Version: " .. require("distroupdate.utils.updater").version(true)
   )
   health.info(
     "Neovim Version: v"
-      .. vim.fn.matchstr(vim.fn.execute "version", "NVIM v\\zs[^\n]*")
+    .. vim.fn.matchstr(vim.fn.execute "version", "NVIM v\\zs[^\n]*")
   )
 
   if vim.version().prerelease then
@@ -79,7 +77,8 @@ function M.check()
     {
       cmd = { "pynvim" },
       type = "warn",
-      msg = "Used to enable ranger file browser (optional)\nNOTE: checkhealth won't detect this correctly, but you can ensure it is installed with 'pip list | grep pynvim'.",
+      msg =
+      "Used to enable ranger file browser (optional)\nNOTE: checkhealth won't detect this correctly, but you can ensure it is installed with 'pip list | grep pynvim'.",
     },
     {
       cmd = { "ranger" },
@@ -114,12 +113,14 @@ function M.check()
     {
       cmd = { "cargo nextest" },
       type = "warn",
-      msg = "Used to run rust tests (optional)\nNOTE: checkhealth won't detect this correctly, but you can confirm it works correctly with 'cargo nextest'.",
+      msg =
+      "Used to run rust tests (optional)\nNOTE: checkhealth won't detect this correctly, but you can confirm it works correctly with 'cargo nextest'.",
     },
     {
       cmd = { "nunit" },
       type = "warn",
-      msg = "Used to run C# tests (optional)\nNOTE: There is no way to install this system wide. To use it you must add it to your dotnet C# project: 'dotnet add package NUnit NUnit3TestAdapter'.",
+      msg =
+      "Used to run C# tests (optional)\nNOTE: There is no way to install this system wide. To use it you must add it to your dotnet C# project: 'dotnet add package NUnit NUnit3TestAdapter'.",
     },
     {
       cmd = { "csc" },
@@ -134,7 +135,8 @@ function M.check()
     {
       cmd = { "dotnet" },
       type = "warn",
-      msg = "Used by compiler.nvim and DAP to operate with dotnet projects (optional)\nNOTE: Make sure you also have the system package dotnet-sdk installed.",
+      msg =
+      "Used by compiler.nvim and DAP to operate with dotnet projects (optional)\nNOTE: Make sure you also have the system package dotnet-sdk installed.",
     },
     {
       cmd = { "java" },
@@ -215,7 +217,8 @@ function M.check()
     {
       cmd = { "godoc" },
       type = "warn",
-      msg = "Used by dooku.nvim to generate go html docs\nNOTE: If you have it installed but you can run it on the terminal, ensure you have added 'go' to your OS path (optional)",
+      msg =
+      "Used by dooku.nvim to generate go html docs\nNOTE: If you have it installed but you can't run it on the terminal, ensure you have added 'go' to your OS path (optional)",
     },
     {
       cmd = { "doxygen" },
